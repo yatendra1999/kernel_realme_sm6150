@@ -747,3 +747,9 @@ CONFIG_OPTIMIZE_INLINING=y
 # CONFIG_ARM64_ERRATUM_858921 is not set
 # CONFIG_ARM64_PAN is not set
 CONFIG_LLVM_POLLY=y
+
+# KernelSU Next (legacy @8af3d4fe, manual-hook integration)
+CONFIG_KSU=y
+CONFIG_KSU_MANUAL_HOOK=y
+# CONFIG_KSU_DEBUG is not set
+# CONFIG_KSU_KPM is not set
