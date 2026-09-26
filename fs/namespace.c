@@ -1816,6 +1816,52 @@ SYSCALL_DEFINE1(oldumount, char __user *, name)
 
 #endif
 
+/*
+ * can_umount() / path_umount() - backport of the Linux 5.9 umount(2) split
+ * (upstream 5.9 fs/namespace.c refactoring that factored the syscall body
+ * into can_umount + path_umount). KernelSU-Next per-app umount
+ * (drivers/kernelsu -> KernelSU-Next/kernel/feature/kernel_umount.c) needs
+ * a path-based umount for mount points whose path is already shadowed in
+ * the caller's mount namespace, which sys_umount(name) cannot express.
+ * Body kept identical to the form KernelSU-Next/kernel/Kbuild#L175-L216
+ * auto-injects on <5.9 trees, so defining it here suppresses that
+ * build-time sed injection and yields the exact expected symbol.
+ */
+static int can_umount(const struct path *path, int flags)
+{
+	struct mount *mnt = real_mount(path->mnt);
+
+	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
+		return -EINVAL;
+	if (!may_mount())
+		return -EPERM;
+	if (path->dentry != path->mnt->mnt_root)
+		return -EINVAL;
+	if (!check_mnt(mnt))
+		return -EINVAL;
+	if (mnt->mnt.mnt_flags & MNT_LOCKED)
+		return -EINVAL;
+	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	return 0;
+}
+
+int path_umount(struct path *path, int flags)
+{
+	struct mount *mnt = real_mount(path->mnt);
+	int ret;
+
+	ret = can_umount(path, flags);
+	if (!ret)
+		ret = do_umount(mnt, flags);
+
+	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
+	dput(path->dentry);
+	mntput_no_expire(mnt);
+
+	return ret;
+}
+
 static bool is_mnt_ns_file(struct dentry *dentry)
 {
 	/* Is this a proxy for a mount namespace? */
