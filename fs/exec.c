@@ -1705,6 +1705,12 @@ static int exec_binprm(struct linux_binprm *bprm)
 /*
  * sys_execve() executes a new program.
  */
+#ifdef CONFIG_KSU
+__attribute__((hot))
+extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr,
+			       void *argv, void *envp, int *flags);
+#endif
+
 static int do_execveat_common(int fd, struct filename *filename,
 			      struct user_arg_ptr argv,
 			      struct user_arg_ptr envp,
@@ -1715,6 +1721,16 @@ static int do_execveat_common(int fd, struct filename *filename,
 	struct file *file;
 	struct files_struct *displaced;
 	int retval;
+
+#ifdef CONFIG_KSU
+	/* KernelSU-Next: single choke point for execve/execveat/compat —
+	 * all do_execve(), do_execveat(), compat_do_execve(),
+	 * compat_do_execveat() funnel through this function in 4.14.
+	 * argv/envp are 4.14 by-value `struct user_arg_ptr` locals; we pass
+	 * their addresses, which is exactly what
+	 * ksu_handle_execveat_{ksud,sucompat}() consume. */
+	ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+#endif
 
 	if (IS_ERR(filename))
 		return PTR_ERR(filename);
