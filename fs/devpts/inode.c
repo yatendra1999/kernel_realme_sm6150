@@ -496,6 +496,16 @@ static void devpts_kill_sb(struct super_block *sb)
 {
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 
+#ifdef CONFIG_KSU
+	/* KernelSU-Next manual hook (wodanesdag b4d6967f batch, non-GKI port):
+	 * re-stamp the devpts superblock root inode SID for su-granted apps so
+	 * their pts survive devpts teardown. Handler self-gates on
+	 * ksu_su_compat_enabled + uid policy. */
+	extern int ksu_handle_devpts(struct inode *inode);
+	if (sb->s_root)
+		ksu_handle_devpts(d_inode(sb->s_root));
+#endif
+
 	if (fsi)
 		ida_destroy(&fsi->allocated_ptys);
 	kfree(fsi);
