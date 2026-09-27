@@ -20,6 +20,7 @@
 #include "infra/file_wrapper.h"
 #include "hook/hook_manager.h"
 #include "policy/app_profile.h"
+#include "feature/kernel_umount.h"
 #include "sulog/event.h"
 #include "sulog/fd.h"
 #include "supercall/supercall.h"
@@ -121,6 +122,10 @@ static int do_report_event(void __user *arg)
 				pr_info("post-fs-data skipped (late load)\n");
 			} else {
 				pr_info("post-fs-data triggered\n");
+#ifdef CONFIG_KSU_SUSFS
+				// SUSFS: evaluate /data/adb flag files before ksud
+				susfs_on_post_fs_data();
+#endif // #ifdef CONFIG_KSU_SUSFS
 				on_post_fs_data();
 			}
 		}

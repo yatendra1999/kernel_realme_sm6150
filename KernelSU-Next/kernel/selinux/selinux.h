@@ -65,4 +65,23 @@ void escape_to_root_for_adb_root();
 
 extern u32 ksu_file_sid;
 
+/*
+ * SUSFS glue (wodanesdag/KernelSU-Next@susfs 08ea4ab9, re-derived for the
+ * v1.5.5 non-GKI kernel patchset simonpunk/susfs4ksu@77905b5a):
+ * SELinux domain predicates + sid caches consumed by fs/susfs.c and the
+ * susfs hunks in fs/namespace.c.
+ */
+#ifdef CONFIG_KSU_SUSFS
+bool susfs_is_sid_equal(const struct cred *cred, u32 sid2);
+u32 susfs_get_sid_from_name(const char *secctx_name);
+u32 susfs_get_current_sid(void);
+void susfs_set_zygote_sid(void);
+bool susfs_is_current_zygote_domain(void);
+void susfs_set_ksu_sid(void);
+bool susfs_is_current_ksu_domain(void);
+void susfs_set_init_sid(void);
+bool susfs_is_current_init_domain(void);
+void susfs_set_priv_app_sid(void);
+#endif // #ifdef CONFIG_KSU_SUSFS
+
 #endif

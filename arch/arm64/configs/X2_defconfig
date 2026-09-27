@@ -753,3 +753,21 @@ CONFIG_KSU=y
 CONFIG_KSU_MANUAL_HOOK=y
 # CONFIG_KSU_DEBUG is not set
 # CONFIG_KSU_KPM is not set
+
+# SUSFS v1.5.5 non-GKI (simonpunk/susfs4ksu kernel-4.14 @77905b5a)
+# + KernelSU-Next glue (wodanesdag susfs@08ea4ab9, re-derived for v1.5.5 ABI).
+# SUS_SU intentionally absent (unsupported non-GKI). SUS_MAP/SUS_MEMFD stay
+# off: their kernel-side backends are v2-era and not in the v1.5.5 patchset.
+# AUTO_ADD_*/HAS_MAGIC_MOUNT/SUS_OVERLAYFS absent by design (Set C Kconfig).
+CONFIG_KSU_SUSFS=y
+CONFIG_KSU_SUSFS_SUS_PATH=y
+CONFIG_KSU_SUSFS_SUS_MOUNT=y
+CONFIG_KSU_SUSFS_SUS_KSTAT=y
+CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+CONFIG_KSU_SUSFS_ENABLE_LOG=y
+CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+# CONFIG_KSU_SUSFS_SUS_MAP is not set
+# CONFIG_KSU_SUSFS_SUS_MEMFD is not set

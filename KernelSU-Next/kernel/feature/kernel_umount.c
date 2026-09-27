@@ -21,6 +21,10 @@
 #include "runtime/ksud_boot.h"
 #include "ksu.h"
 #include "compat/kernel_compat.h"
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/mount.h>
+#include <linux/susfs.h>
+#endif // #ifdef CONFIG_KSU_SUSFS
 
 static bool ksu_kernel_umount_enabled = true;
 
@@ -187,3 +191,88 @@ void __exit ksu_kernel_umount_exit(void)
 {
 	ksu_unregister_feature_handler(KSU_FEATURE_KERNEL_UMOUNT);
 }
+
+#ifdef CONFIG_KSU_SUSFS
+/* --- SUSFS glue helpers (simonpunk 10_enable@77905b5a content, re-homed into
+ *     feature/kernel_umount.c for the KernelSU-Next v3.4.0-legacy layout) --- */
+
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+static bool susfs_is_umount_for_zygote_system_process_enabled = false;
+
+bool susfs_umount_for_zygote_system_process_enabled(void)
+{
+	return susfs_is_umount_for_zygote_system_process_enabled;
+}
+
+// Called from the POST_FS_DATA event handler (supercall/dispatch.c) before
+// ksu's own on_post_fs_data(), mirroring susfs_on_post_fs_data() in the v1.5.5
+// 10_enable patch (which ran it inside ksu_handle_prctl's event switch).
+// NOTE: the AUTO_ADD_* toggles of the original are intentionally absent - the
+// KSU-side Kconfig block ported here (Set C of the pin sheet) does not define
+// those options, and their kernel-side hunks stay compiled out.
+void susfs_on_post_fs_data(void)
+{
+	struct path path;
+
+	if (!kern_path(DATA_ADB_UMOUNT_FOR_ZYGOTE_SYSTEM_PROCESS, 0, &path)) {
+		susfs_is_umount_for_zygote_system_process_enabled = true;
+		path_put(&path);
+	}
+	pr_info("susfs_is_umount_for_zygote_system_process_enabled: %d\n",
+		susfs_is_umount_for_zygote_system_process_enabled);
+}
+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
+extern bool susfs_is_log_enabled __read_mostly;
+#endif
+
+// Same semantics as the KSUN-native try_umount() above (exported for SUSFS:
+// simonpunk v1.5.5 10_enable named the 4-arg variant ksu_try_umount; the
+// check_mnt argument is kept for ABI fidelity - our native path always gates
+// on mnt_root, so behavior is unchanged).
+void ksu_try_umount(const char *mnt, bool check_mnt, int flags, uid_t uid)
+{
+	struct path path;
+	int err = kern_path(mnt, 0, &path);
+	if (err) {
+		return;
+	}
+
+	if (path.dentry != path.mnt->mnt_root) {
+		// it is not root mountpoint, maybe umounted by others already.
+		path_put(&path);
+		return;
+	}
+
+#if defined(CONFIG_KSU_SUSFS_TRY_UMOUNT) && defined(CONFIG_KSU_SUSFS_ENABLE_LOG)
+	if (susfs_is_log_enabled) {
+		pr_info("susfs: umounting '%s' for uid: %d\n", mnt, uid);
+	}
+#endif
+	(void)check_mnt;
+
+	ksu_umount_mnt(mnt, &path, flags);
+}
+
+// Referenced by fs/namespace.c (susfs_run_try_umount_for_current_mnt_ns) and
+// our setresuid hook; body = simonpunk 10_enable verbatim.
+void susfs_try_umount_all(uid_t uid)
+{
+	susfs_try_umount(uid);
+	/* For Legacy KSU only */
+	ksu_try_umount("/system", true, 0, uid);
+	ksu_try_umount("/system_ext", true, 0, uid);
+	ksu_try_umount("/vendor", true, 0, uid);
+	ksu_try_umount("/product", true, 0, uid);
+	ksu_try_umount("/odm", true, 0, uid);
+	// - For '/data/adb/modules' we pass 'false' here because it is a loop
+	//   device that we can't determine whether its dev_name is KSU or not,
+	//   and it is safe to just umount it if it is really a mountpoint
+	ksu_try_umount("/data/adb/modules", false, MNT_DETACH, uid);
+	/* For both Legacy KSU and Magic Mount KSU */
+	ksu_try_umount("/debug_ramdisk", true, MNT_DETACH, uid);
+}
+#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+#endif // #ifdef CONFIG_KSU_SUSFS

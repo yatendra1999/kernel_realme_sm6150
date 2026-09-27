@@ -2375,6 +2375,18 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	unsigned char comm[sizeof(me->comm)];
 	long error;
 
+#ifdef CONFIG_KSU
+	/* KernelSU-Next SUSFS glue: v1.5.5 ksu_susfs tool command channel
+	 * (prctl(0xDEADBEEF, CMD_SUSFS_*, &info, NULL, &error)). Consumes
+	 * only that magic option; everything else passes through. */
+	extern int ksu_handle_susfs_prctl(int option, unsigned long arg2,
+					  unsigned long arg3,
+					  unsigned long arg4,
+					  unsigned long arg5);
+	if (ksu_handle_susfs_prctl(option, arg2, arg3, arg4, arg5))
+		return 0;
+#endif
+
 	error = security_task_prctl(option, arg2, arg3, arg4, arg5);
 	if (error != -ENOSYS)
 		return error;

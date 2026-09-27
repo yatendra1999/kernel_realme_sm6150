@@ -279,6 +279,15 @@ out_flush:
 	smp_mb();
 	reset_avc_cache();
 #endif
+
+#ifdef CONFIG_KSU_SUSFS
+	// SUSFS glue: resolve the sids it predicates on once the policy is in
+	// place. Shared tail of both policy-update variants (SS and non-SS).
+	susfs_set_priv_app_sid();
+	susfs_set_init_sid();
+	susfs_set_ksu_sid();
+	susfs_set_zygote_sid();
+#endif // #ifdef CONFIG_KSU_SUSFS
 }
 
 #define KSU_SEPOLICY_MAX_BATCH_SIZE (8U * 1024U * 1024U)
