@@ -170,11 +170,19 @@ if test "$CONFIG_LOCALVERSION_AUTO" = "y"; then
 	# full scm version string
 	res="$res$(scm_version)"
 else
-	# append a plus sign if the repository is not in a clean
-	# annotated or signed tagged state (as git describe only
-	# looks at signed or annotated tags - git tag -a/-s) and
-	# LOCALVERSION= is not specified
-	if test "${LOCALVERSION+set}" != "set"; then
+	# RMX1992 row 25: derive NOTHING from git state by default.
+	#
+	# Upstream appends '+' unless HEAD sits on a clean annotated/signed tag, which makes the
+	# shipped `uname -r` a property of whoever ran the build last. Building an untagged/dirty
+	# tree produced `4.14.180-perf+` -- byte-identical to stock F.26, whose own build tree was
+	# evidently untagged -- and then creating the annotated release tag on that very commit
+	# silently dropped the '+', yielding `4.14.180-perf`: a one-character divergence from stock
+	# that only the byte-exact zip verifier caught, and only after a full ROM had been packed.
+	# The '+' now lives in CONFIG_LOCALVERSION ("-perf+"), so the string is identical for
+	# clean, dirty, tagged and untagged trees and the artifact is actually reproducible.
+	#
+	# RMX1992_LOCALVERSION_FROM_GIT=1 restores upstream behaviour for ad-hoc development builds.
+	if test "${RMX1992_LOCALVERSION_FROM_GIT:-0}" = "1" && test "${LOCALVERSION+set}" != "set"; then
 		scm=$(scm_version --short)
 		res="$res${scm:++}"
 	fi

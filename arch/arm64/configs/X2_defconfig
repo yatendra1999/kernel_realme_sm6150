@@ -1,4 +1,9 @@
-CONFIG_LOCALVERSION="-perf"
+# Stock F.26 `uname -r` is `4.14.180-perf+`; the trailing '+' is part of that string.
+# It is written here rather than left to scripts/setlocalversion because upstream derives it
+# from git state (present unless HEAD is on a clean annotated/signed tag), which would make the
+# shipped identity depend on how the tree happened to be checked out at build time. See the
+# RMX1992 note in scripts/setlocalversion.
+CONFIG_LOCALVERSION="-perf+"
 # CONFIG_LOCALVERSION_AUTO is not set
 # CONFIG_FHANDLE is not set
 CONFIG_AUDIT=y
