@@ -1,7 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 4
 PATCHLEVEL = 14
-SUBLEVEL = 190
+# RMX1992 (plan row 25, stock-identity bundle): this source is the 4.14.190 stable
+# base, but the release string is world-readable (/proc/version, uname -r) and the
+# Axis bank app ships what it reads.  Stock realme F.26 for this device reports
+# "4.14.180-perf+", and /proc/config.gz is already served from the stock 4.14.180
+# config (see kernel/Makefile: $(obj)/config_data.gz -> stock-19771_defconfig), so
+# UTS_RELEASE is pinned to the stock value to keep the two surfaces coherent.
+# Nothing in this tree gates on LINUX_VERSION_CODE >= 4.14.18x (verified by grep:
+# KernelSU-Next's next gate above 4.14.0 is 4.17.0) and no .ko ships in the image,
+# so the change carries no functional risk.  Set RMX1992_IDENTITY=host plus
+# SUBLEVEL=190 to build the raw truth for debugging.
+SUBLEVEL = 180
 EXTRAVERSION =
 NAME = Petit Gorille
 

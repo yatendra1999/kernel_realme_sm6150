@@ -28,6 +28,52 @@ set -f
 LC_ALL=C
 export LC_ALL
 
+# --- RMX1992 stock-identity bundle (plan row 25) -----------------------------
+# /proc/version is world-readable and the Axis bank app reads it and ships the
+# string in telemetry (DEFEAT-MATRIX V8: libutzvrony FUN_0005048c,
+# popen("uname -a")).  Our banner therefore has to be indistinguishable from the
+# captured stock realme F.26 one, recorded verbatim in
+# .omo/evidence/task-14-rmx1992-lineageos-kernelsu.txt (Appendix C):
+#
+#   Linux version 4.14.180-perf+ (root@ubuntu-9-165) (clang version 10.0.7 for
+#   Android NDK, GNU ld (binutils-2.27-bd24d23f) 2.27.0.20170315) #1 SMP PREEMPT
+#   Tue Dec 14 01:12:02 CST 2021
+#
+# Left to itself this build reports "nobody@android-build" (the AOSP bwrap
+# sandbox: build/soong/ui/build/sandbox_linux.go -H android-build) plus the real
+# clang-17/ld toolchain versions, and CONFIG_LOCALVERSION carried a downstream
+# "-oops" marker.  All four tokens are pinned here rather than derived from the
+# build host, so every path that compiles this tree (m bootimage, m bacon,
+# recovery, DTBO) produces the identical string.  An explicit KBUILD_BUILD_*
+# value in the environment still wins, and RMX1992_IDENTITY=host restores fully
+# derived values for debugging.
+if [ "$RMX1992_IDENTITY" != "host" ]; then
+	if [ -z "$KBUILD_BUILD_TIMESTAMP" ]; then
+		KBUILD_BUILD_TIMESTAMP='Tue Dec 14 01:12:02 CST 2021'
+	fi
+	if [ -z "$KBUILD_BUILD_USER" ]; then
+		KBUILD_BUILD_USER='root'
+	fi
+	if [ -z "$KBUILD_BUILD_HOST" ]; then
+		KBUILD_BUILD_HOST='ubuntu-9-165'
+	fi
+	if [ -z "$RMX1992_COMPILER" ]; then
+		RMX1992_COMPILER='clang version 10.0.7 for Android NDK, GNU ld (binutils-2.27-bd24d23f) 2.27.0.20170315'
+	fi
+	# Build number.  Stock F.26 reports "#1"; kbuild derives this from a .version
+	# file inside $(KERNEL_OUT) and INCREMENTS IT ON EVERY BUILD, so an unpinned
+	# banner silently drifts #1 -> #2 -> #3 across rebuilds of identical sources.
+	# The first rebuild after the identity bundle landed measured exactly that:
+	# ".version" was 1, this build wrote 2, and the shipped banner came out
+	# "#2 SMP PREEMPT Tue Dec 14 01:12:02 CST 2021" -- one character off stock, and
+	# only caught because the verifier compares whole strings rather than lengths or
+	# prefixes ("#1"/"#2" are the same width).  Pinning also makes the ROM
+	# reproducible: two builds of the same commit now yield byte-identical images.
+	if [ -z "$KBUILD_BUILD_VERSION" ]; then
+		KBUILD_BUILD_VERSION=1
+	fi
+fi
+
 if [ -z "$KBUILD_BUILD_VERSION" ]; then
 	if [ -r .version ]; then
 		VERSION=`cat .version`
@@ -78,10 +124,14 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
   echo \#define LINUX_COMPILE_BY \"`echo $LINUX_COMPILE_BY | $UTS_TRUNCATE`\"
   echo \#define LINUX_COMPILE_HOST \"`echo $LINUX_COMPILE_HOST | $UTS_TRUNCATE`\"
 
+  if [ -n "$RMX1992_COMPILER" ]; then
+    printf '#define LINUX_COMPILER "%s"\n' "$RMX1992_COMPILER"
+  else
   CC_VERSION=$($CC -v 2>&1 | grep ' version ' | head -n1 | sed 's/[[:space:]]*$//')
   LD_VERSION=$($LD -v | head -n1 | sed 's/(compatible with [^)]*)//' \
 		      | sed 's/[[:space:]]*$//')
   printf '#define LINUX_COMPILER "%s"\n' "$CC_VERSION, $LD_VERSION"
+  fi
 ) > .tmpcompile
 
 # Only replace the real compile.h if the new one is different,
