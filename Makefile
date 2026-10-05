@@ -15,6 +15,33 @@ SUBLEVEL = 180
 EXTRAVERSION =
 NAME = Petit Gorille
 
+# RMX1992 (plan rows 12/18): pin the KernelSU-Next feature level we advertise.
+#
+# KernelSU-Next/kernel/Kbuild derives KSU_VERSION = 30000 + KSU_GIT_VERSION + 289 ONLY when
+# it detects its own git repository (GIT_ROOT != KERNEL_GIT_ROOT). In this fork KernelSU-Next
+# was imported as a plain directory -- there is no nested repo -- so KSU_GIT_VERSION_VALID is
+# never set and the build SILENTLY falls back to KSU_VERSION = 1 and KSU_VERSION_TAG = v0.0.1
+# (measured in the build log: "-- KernelSU-Next version fallback: 1"). Those values are what
+# the manager reads back through the supercall (kernel/supercall/dispatch.c:46,80 and
+# uapi/supercall.h struct ksu_get_info_cmd), and KernelSU-Next manager v3.4.0 hard-gates on
+# Natives.MINIMAL_SUPPORTED_KERNEL = 33188 -- so a kernel advertising 1 is rejected as
+# unsupported and KernelSU is unusable, which is a functional failure, not cosmetic.
+#
+# Upstream ships integrator hooks for exactly this situation (Kbuild:105-107 / 119-120) and
+# the comment there cites issue #1549 "legacy: pin KSU_VERSION to 33294 (match v3.4.0 manager
+# versionCode)", which is the value used below; the tag is the fallback tag recorded for the
+# pinned source 8af3d4fe in the plan, and fits the 32-byte tag field.
+#
+# They MUST be exported: kbuild descends into each directory with a recursive
+# `make -f scripts/Makefile.build obj=...`, and an unexported variable does not cross that
+# boundary, so the Kbuild would still see nothing. Deliberately NOT passed through
+# TARGET_KERNEL_MAKE_ENV in the device tree: that is a soong/kati input, which would force a
+# ~12 h full re-analysis here AND be ignored by the direct-ninja path this build relies on.
+# An explicit value on the make command line still wins (?= below).
+KSU_VERSION_OVERRIDE ?= 33294
+KSU_VERSION_TAG_OVERRIDE ?= v3.1.0-legacy
+export KSU_VERSION_OVERRIDE KSU_VERSION_TAG_OVERRIDE
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
